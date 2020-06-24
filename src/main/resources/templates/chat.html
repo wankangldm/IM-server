@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>群聊</title>
+    <script src="/jquery-3.4.1.js"></script>
+    <script src="/sockjs.min.js"></script>
+    <script src="/stomp.js"></script>
+    <script>
+        var stompClient = null;
+
+        // 根据是否已连接设置页面元素状态
+        function setConnected(connected) {
+            $("#connect").prop("disabled", connected);
+            $("#disconnect").prop("disabled", !connected);
+            if (connected) {
+                $("#conversation").show();
+                $("#chat").show();
+            }
+            else {
+                $("#conversation").hide();
+                $("#chat").hide();
+            }
+            $("#greetings").html("");
+        }
+
+        // 建立一个WebSocket连接
+        function connect() {
+            // 用户名不能为空
+            if (!$("#name").val()) {
+                return;
+            }
+            // 首先使用 SockJS 建立连接
+            var socket = new SockJS('/chat');
+            // 然后创建一个STOMP实例发起连接请求
+            stompClient = Stomp.over(socket);
+            // 连接成功回调
+            stompClient.connect({}, function (frame) {
+                // 进行页面设置
+                setConnected(true);
+                // 订阅服务端发送回来的消息
+                stompClient.subscribe('/topic/greetings', function (greeting) {
+                    // 将服务端发送回来的消息展示出来
+                    showGreeting(JSON.parse(greeting.body));
+                });
+            });
+        }
+
+        // 断开WebSocket连接
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+            }
+            setConnected(false);
+        }
+
+        // 发送消息
+        function sendName() {
+            stompClient.send("/app/hello",
+                {},
+                JSON.stringify({'name': $("#name").val(),'content':$("#content").val()}));
+        }
+
+        // 将服务端发送回来的消息展示出来
+        function showGreeting(message) {
+            $("#greetings")
+                .append("<div>" + message.name+":"+message.content + "</div>");
+        }
+
+        // 页面加载后进行初始化动作
+        $(function () {
+            $( "#connect" ).click(function() { connect(); });
+            $( "#disconnect" ).click(function() { disconnect(); });
+            $( "#send" ).click(function() { sendName(); });
+        });
+    </script>
+</head>
+<body>
+<div>
+    <label for="name">请输入用户名：</label>
+    <input type="text" id="name" placeholder="用户名">
+</div>
+<div>
+    <button id="connect" type="button">连接</button>
+    <button id="disconnect" type="button" disabled="disabled">断开连接</button>
+</div>
+<div id="chat" style="display: none;">
+    <div>
+        <label for="name">请输入聊天内容：</label>
+        <input type="text" id="content" placeholder="聊天内容">
+    </div>
+    <button id="send" type="button">发送</button>
+    <div id="greetings">
+        <div id="conversation" style="display: none">群聊进行中...</div>
+    </div>
+</div>
+</body>
+</html>

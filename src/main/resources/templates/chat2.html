@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>单聊</title>
+    <script src="/jquery-3.4.1.js"></script>
+    <script src="/sockjs.min.js"></script>
+    <script src="/stomp.js"></script>
+    <script>
+        var stompClient = null;
+
+        // 建立一个WebSocket连接
+        function connect() {
+            // 首先使用 SockJS 建立连接
+            var socket = new SockJS('/chat');
+            // 然后创建一个STOMP实例发起连接请求
+            stompClient = Stomp.over(socket);
+            // 连接成功回调
+            stompClient.connect({}, function (frame) {
+                // 订阅服务端发送回来的消息
+                stompClient.subscribe('/user/queue/chat', function (chat) {
+                    // 将服务端发送回来的消息展示出来
+                    showGreeting(JSON.parse(chat.body));
+                });
+            });
+        }
+
+        // 发送消息
+        function sendMsg() {
+            stompClient.send("/app/chat", {},
+                JSON.stringify({'content':$("#content").val(),
+                    'to':$("#to").val()}));
+        }
+
+        // 将服务端发送回来的消息展示出来
+        function showGreeting(message) {
+            $("#chatsContent")
+                .append("<div>" + message.from+":"+message.content + "</div>");
+        }
+
+        // 页面加载后进行初始化动作
+        $(function () {
+            // 页面加载完毕后自动连接
+            connect();
+            $( "#send" ).click(function() { sendMsg(); });
+        });
+    </script>
+</head>
+<body>
+<div id="chat">
+    <div id="chatsContent">
+    </div>
+    <div>
+        请输入聊天内容：
+        <input type="text" id="content" placeholder="聊天内容">
+        目标用户：
+        <input type="text" id="to" placeholder="目标用户">
+        <button id="send" type="button">发送</button>
+    </div>
+</div>
+</body>
+</html>
